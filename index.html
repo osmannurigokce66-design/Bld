@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bildirim Testi</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f4f4f9;
+    }
+    .btn-container {
+      display: flex;
+      gap: 15px;
+      margin-top: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      background-color: #007bff;
+      color: white;
+      transition: background-color 0.2s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Web Bildirim Testi</h2>
+  <p>Aşağıdaki düğmelere basarak bildirim gönderebilirsiniz:</p>
+
+  <div class="btn-container">
+    <button onclick="bildirimGonder('Merhaba')">1. Merhaba</button>
+    <button onclick="bildirimGonder('Elbette')">2. Elbette</button>
+  </div>
+
+  <script>
+    // Sayfa yüklendiğinde bildirim izni iste
+    document.addEventListener("DOMContentLoaded", () => {
+      if ("Notification" in window) {
+        Notification.requestPermission();
+      } else {
+        alert("Bu tarayıcı bildirimleri desteklemiyor.");
+      }
+    });
+
+    // Düğmeye basıldığında bildirimi tetikleyen fonksiyon
+    function bildirimGonder(metin) {
+      if (!("Notification" in window)) {
+        alert("Tarayıcınız bildirim özelliğini desteklemiyor.");
+        return;
+      }
+
+      if (Notification.permission === "granted") {
+        new Notification("Yeni Mesaj", {
+          body: metin,
+          icon: "https://via.placeholder.com/128" // İsteğe bağlı ikon URL'si
+        });
+      } else if (Notification.permission !== "denied") {
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            new Notification("Yeni Mesaj", {
+              body: metin
+            });
+          }
+        });
+      } else {
+        alert("Bildirim izni engellenmiş. Lütfen tarayıcı ayarlarından izin verin.");
+      }
+    }
+  </script>
+
+</body>
+</html>
