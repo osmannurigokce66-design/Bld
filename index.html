@@ -50,35 +50,52 @@
     }
     .btn-perm { background-color: #28a745; color: white; }
     .btn-send { background-color: #007bff; color: white; }
-    button:disabled { background-color: #ccc; cursor: not-allowed; }
   </style>
 </head>
 <body>
 
   <div class="card">
-    <h2>Bildirim Testi</h2>
-    <div id="statusBox" class="status default">Durum: İzin Kontrol Ediliyor...</div>
+    <h2>Mobil Bildirim Testi</h2>
+    <div id="statusBox" class="status default">Durum: Kontrol Ediliyor...</div>
 
-    <button id="permBtn" class="btn-perm" onclick="izinIste()">1. Bildirim İznini Ver</button>
+    <button class="btn-perm" onclick="izinIste()">1. Bildirim İznini Ver</button>
     <button class="btn-send" onclick="bildirimGonder('Merhaba')">2. "Merhaba" Gönder</button>
     <button class="btn-send" onclick="bildirimGonder('Elbette')">3. "Elbette" Gönder</button>
   </div>
 
   <script>
     const statusBox = document.getElementById('statusBox');
+    let swRegistration = null;
 
-    function durumpuncelle() {
-      if (!("Notification" in window)) {
-        statusBox.textContent = "Hata: Tarayıcınız bildirimleri desteklemiyor.";
+    async function init() {
+      if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+        statusBox.textContent = "Hata: Tarayıcınız desteklemiyor.";
         statusBox.className = "status denied";
         return;
       }
-      
+
+      // Service Worker'ı doğrudan Blob üzerinden kaydediyoruz (Ekstra dosya gerektirmez)
+      try {
+        const swCode = `
+          self.addEventListener('install', e => self.skipWaiting());
+          self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+        `;
+        const blob = new Blob([swCode], { type: 'text/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+
+        swRegistration = await navigator.serviceWorker.register(swUrl);
+        durumGuncelle();
+      } catch (err) {
+        console.error("Service Worker hatası:", err);
+      }
+    }
+
+    function durumGuncelle() {
       if (Notification.permission === "granted") {
         statusBox.textContent = "Durum: İzin Verildi ✓";
         statusBox.className = "status granted";
       } else if (Notification.permission === "denied") {
-        statusBox.textContent = "Durum: Engellendi ✕ (Site ayarlarından açmalısınız)";
+        statusBox.textContent = "Durum: Engellendi ✕";
         statusBox.className = "status denied";
       } else {
         statusBox.textContent = "Durum: İzin Bekleniyor";
@@ -87,44 +104,35 @@
     }
 
     async function izinIste() {
-      if (!("Notification" in window)) return;
-      
-      try {
-        const result = await Notification.requestPermission();
-        durumpuncelle();
-        if (result === "granted") {
-          bildirimGonder("İzin başarıyla alındı!");
-        }
-      } catch (e) {
-        alert("İzin istenirken hata oluştu: " + e.message);
+      const result = await Notification.requestPermission();
+      durumGuncelle();
+      if (result === "granted") {
+        bildirimGonder("İzin başarıyla alındı!");
+      } else {
+        alert("Bildirim izni verilmedi.");
       }
     }
 
-    function bildirimGonder(metin) {
-      if (!("Notification" in window)) {
-        alert("Tarayıcınız bildirim desteklemiyor.");
+    async function bildirimGonder(metin) {
+      if (Notification.permission !== "granted") {
+        alert("Lütfen önce bildirim izni verin!");
         return;
       }
 
-      if (Notification.permission === "granted") {
-        // Doğrudan bildirim oluştur
-        const n = new Notification("Yeni Mesaj", {
-          body: metin,
-          tag: 'test-notification',
-          renotify: true
-        });
-
-        n.onclick = function() {
-          window.focus();
-          n.close();
-        };
-      } else {
-        alert("Lütfen önce '1. Bildirim İznini Ver' butonuna basarak izin verin.");
+      if (!swRegistration) {
+        alert("Servis henüz hazırlanmadı, lütfen biraz bekleyip tekrar deneyin.");
+        return;
       }
+
+      // Android'in kabul ettiği doğru yöntem (ServiceWorker üzerinden tetikleme)
+      await swRegistration.showNotification("Yeni Mesaj", {
+        body: metin,
+        icon: "https://via.placeholder.com/128",
+        vibrate: [200, 100, 200]
+      });
     }
 
-    // Sayfa açıldığında durumu kontrol et
-    durumpuncelle();
+    init();
   </script>
 
 </body>
